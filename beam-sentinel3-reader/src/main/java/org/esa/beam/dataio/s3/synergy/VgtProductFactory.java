@@ -42,14 +42,7 @@ public class VgtProductFactory extends AbstractProductFactory {
 
     @Override
     protected List<String> getFileNames(Manifest manifest) {
-        final List<String> fileNames = new ArrayList<String>();
-        fileNames.addAll(manifest.getFileNames("measurementDataSchema"));
-        fileNames.addAll(manifest.getFileNames("statusFlagsSchema"));
-        fileNames.addAll(manifest.getFileNames("timeCoordinatesSchema"));
-        fileNames.addAll(manifest.getFileNames("tiepointsSchema"));
-        fileNames.addAll(manifest.getFileNames("geometryDataSchema"));
-
-        return fileNames;
+        return manifest.getFileNames(new String[0]);
     }
 
     @Override
