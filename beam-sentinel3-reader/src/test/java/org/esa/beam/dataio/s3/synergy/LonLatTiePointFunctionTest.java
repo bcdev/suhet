@@ -15,6 +15,7 @@ package org.esa.beam.dataio.s3.synergy;/*
  */
 
 import org.esa.beam.dataio.s3.LonLatFunction;
+import org.junit.Ignore;
 import org.junit.Test;
 import ucar.nc2.Variable;
 
@@ -23,6 +24,8 @@ import static org.junit.Assert.assertEquals;
 public class LonLatTiePointFunctionTest {
 
     @Test
+    //takes a lot of time
+    @Ignore
     public void testApproximation() throws Exception {
 
         NcFile ncFile1 = null;

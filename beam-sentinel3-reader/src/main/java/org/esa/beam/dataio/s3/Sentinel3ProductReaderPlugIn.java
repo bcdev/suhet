@@ -36,7 +36,8 @@ public class Sentinel3ProductReaderPlugIn implements ProductReaderPlugIn {
     private final String[] formatNames;
 
     public Sentinel3ProductReaderPlugIn() {
-        this(FORMAT_NAME, "Sentinel-3 products", "S3.?_(OL_1_E[FR]R|OL_2_(L[FR]R|W[FR]R)|SL_1_SLT|SL_2_(LST|WCT|WST)|SY_2_(VGP|SYN)|SY_[23]_VGS)_.*(.SAFE)?", "manifest", ".safe", ".xml");
+//        this(FORMAT_NAME, "Sentinel-3 products", "S3.?_(OL_1_E[FR]R|OL_2_(L[FR]R|W[FR]R)|SL_1_SLT|SL_2_(LST|WCT|WST)|SY_2_(VGP|SYN)|SY_[23]_VGS)_.*(.SAFE)?", "manifest", ".safe", ".xml");
+        this(FORMAT_NAME, "Sentinel-3 products", "S3.?_(OL_1_E[FR]R|OL_2_(L[FR]R|W[FR]R)|SL_1_RBT|SL_2_(LST|WCT|WST)|SY_2_(VGP|SYN)|SY_[23]_VG1)_.*(.SEN3)?", "xfdumanifest", ".xml");
         // special version for ACRI - rq-20140214
         // this(FORMAT_NAME, "Sentinel-3 products", "S3.?_(OL_1_E[FR]R|OL_2_(L[FR]R|W[FR]R))_.*(.SAFE)?", "manifest", ".safe", ".xml");
     }
@@ -98,11 +99,6 @@ public class Sentinel3ProductReaderPlugIn implements ProductReaderPlugIn {
             final String manifestFileName = manifestFileBasename + fileExtension;
             if (manifestFileName.equalsIgnoreCase(name)) {
                 return true;
-            } else {
-                final String s = "L1b_EO_" + manifestFileName;
-                if (s.equalsIgnoreCase(name)) {
-                    return true;
-                }
             }
         }
         return false;

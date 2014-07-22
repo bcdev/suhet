@@ -105,7 +105,8 @@ public class AtmCorrIOParametersPanel extends JPanel {
         public boolean accept(Product product) {
             String productName = product.getName();
             return S2Config.PRODUCT_DIRECTORY_1C_PATTERN.matcher(productName).matches() ||
-                    S2Config.DIRECTORY_1C_PATTERN_ALT.matcher(productName).matches();
+                    S2Config.DIRECTORY_1C_PATTERN_ALT.matcher(productName).matches() ||
+                    S2Config.TILE_DIRECTORY_1C_PATTERN.matcher(productName).matches();
         }
     }
 

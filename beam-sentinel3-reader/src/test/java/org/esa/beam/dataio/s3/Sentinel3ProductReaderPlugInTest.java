@@ -58,50 +58,56 @@ public class Sentinel3ProductReaderPlugInTest {
     }
 
     @Test
-    public void testDecodeQualification_OlciLevel2() {
-        final String path = createManifestFilePath("OL", "2", "WFR", ".SAFE");
+         public void testDecodeQualification_OlciLevel2L() {
+        final String path = createManifestFilePath("OL", "2", "LFR", ".SEN3");
+        assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
+    }
+
+    @Test
+    public void testDecodeQualification_OlciLevel2W() {
+        final String path = createManifestFilePath("OL", "2", "WFR", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_SlstrLevel1b() {
-        final String path = createManifestFilePath("SL", "1", "SLT", "");
+        final String path = createManifestFilePath("SL", "1", "RBT", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_SlstrWct() {
-        final String path = createManifestFilePath("SL", "2", "WCT", ".SAFE");
+        final String path = createManifestFilePath("SL", "2", "WCT", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_SlstrWst() {
-        final String path = createManifestFilePath("SL", "2", "WST", ".SAFE");
+        final String path = createManifestFilePath("SL", "2", "WST", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_SlstrLst() {
-        final String path = createManifestFilePath("SL", "2", "LST", ".SAFE");
+        final String path = createManifestFilePath("SL", "2", "LST", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_SynergyLevel2() {
-        final String path = createManifestFilePath("SY", "2", "SYN", ".SAFE");
+        final String path = createManifestFilePath("SY", "2", "SYN", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_VgtP() {
-        final String path = createManifestFilePath("SY", "2", "VGP", ".SAFE");
+        final String path = createManifestFilePath("SY", "2", "VGP", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
     @Test
     public void testDecodeQualification_VgtS() {
-        final String path = createManifestFilePath("SY", "3", "VGS", ".SAFE");
+        final String path = createManifestFilePath("SY", "3", "VG1", ".SEN3");
         assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(path));
     }
 
@@ -140,9 +146,12 @@ public class Sentinel3ProductReaderPlugInTest {
     }
 
     private static String createManifestFilePath(String sensorId, String levelId, String productId, String suffix) {
-        String validParentDirectory = String.format("/S3_%s_%s_%s_TTTTTTTTTTTT_instanceID_GGG_CCCC_VV%s/", sensorId,
+
+//        "S3.?_(OL_1_E[FR]R|OL_2_(L[FR]R|W[FR]R)|SL_1_RBT|SL_2_(LST|WCT|WST)|SY_2_(VGP|SYN)|SY_[23]_VG1)_.*(.SEN3)?"
+
+        String validParentDirectory = String.format("/S3_%s_%s_%s_TTTTTTTTTTTT_.*%s/", sensorId,
                                                     levelId, productId, suffix);
-        String manifestFile = "manifest.xml";
+        String manifestFile = "xfdumanifest.xml";
         return validParentDirectory + manifestFile;
     }
 
