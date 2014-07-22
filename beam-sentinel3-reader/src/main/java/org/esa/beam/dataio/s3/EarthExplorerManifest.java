@@ -93,6 +93,11 @@ class EarthExplorerManifest implements Manifest {
     }
 
     @Override
+    public List<String> getFileNames(String[] excluded) {
+        return null;
+    }
+
+    @Override
     public MetadataElement getMetadata() {
         final MetadataElement manifestElement = new MetadataElement("Manifest");
         final Node node = xPathHelper.getNode("//Earth_Explorer_Header", doc);

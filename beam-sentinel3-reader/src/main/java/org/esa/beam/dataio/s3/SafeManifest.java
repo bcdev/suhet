@@ -76,6 +76,11 @@ class SafeManifest implements Manifest {
     }
 
     @Override
+    public List<String> getFileNames(String[] excluded) {
+        return null;
+    }
+
+    @Override
     public MetadataElement getMetadata() {
         final MetadataElement manifestElement = new MetadataElement("Manifest");
         final Node node = xPathHelper.getNode("//metadataSection", doc);

@@ -29,5 +29,7 @@ public interface Manifest {
 
     List<String> getFileNames(String schema);
 
+    List<String> getFileNames(String[] excluded);
+
     MetadataElement getMetadata();
 }
