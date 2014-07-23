@@ -41,9 +41,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// TODO - check flag codings, masks, auto-grouping, if everything is correct for mosaic of camera images
-
 public class SynLevel2ProductFactory extends AbstractProductFactory {
+
+    // TODO - time  data are provided on a different grid, so we currently don't use them
+    private static final String[] excludedIDs = new String[]{"time_Data", "tiepoints_olci_Data",
+            "tiepoints_slstr_n_Data", "tiepoints_slstr_o_Data", "tiepoints_meteo_Data"};
 
     public SynLevel2ProductFactory(Sentinel3ProductReader productReader) {
         super(productReader);
@@ -51,85 +53,7 @@ public class SynLevel2ProductFactory extends AbstractProductFactory {
 
     @Override
     protected List<String> getFileNames(Manifest manifest) {
-        final List<String> fileNames = new ArrayList<String>();
-        fileNames.addAll(manifest.getFileNames("geocoordinatesSchema"));
-        fileNames.addAll(manifest.getFileNames("measurementDataSchema"));
-        fileNames.addAll(manifest.getFileNames("geometryDataSchema"));
-
-        // TODO - time  data are provided on a different grid, so we currently don't use them
-
-        return fileNames;
-    }
-
-    @Override
-    protected int getSceneRasterWidth(Product masterProduct) {
-        return masterProduct.getSceneRasterWidth() * 5;
-    }
-
-    @Override
-    protected void addDataNodes(Product masterProduct, Product targetProduct) throws IOException {
-        for (final Product sourceProduct : getOpenProductList()) {
-            final Map<String, String> mapping = new HashMap<String, String>();
-            final Map<String, List<String>> partition = Partitioner.partition(sourceProduct.getBandNames(), "_CAM");
-
-            for (final Map.Entry<String, List<String>> entry : partition.entrySet()) {
-                String targetBandName = buildTargetBandName(sourceProduct, entry.getKey());
-                final List<String> sourceBandNames = entry.getValue();
-                final String sourceBandName = sourceBandNames.get(0);
-                final Band targetBand = ProductUtils.copyBand(sourceBandName, sourceProduct, targetBandName,
-                                                              targetProduct, false);
-                final MultiLevelImage[] sourceImages = new MultiLevelImage[sourceBandNames.size()];
-                for (int i = 0; i < sourceImages.length; i++) {
-                    sourceImages[i] = sourceProduct.getBand(sourceBandNames.get(i)).getSourceImage();
-                }
-                targetBand.setSourceImage(CameraImageMosaic.create(sourceImages));
-                final Band sourceBand = sourceProduct.getBand(sourceBandName);
-                configureTargetNode(sourceBand, targetBand);
-                mapping.put(sourceBand.getName(), targetBand.getName());
-            }
-            copyMasks(targetProduct, sourceProduct, mapping);
-        }
-        addCameraIndexBand(targetProduct, masterProduct.getSceneRasterWidth());
-    }
-
-    private String buildTargetBandName(Product sourceProduct, String bandName) {
-        StringBuilder targetBandNameBuilder = new StringBuilder(bandName);
-        if (sourceProduct.getName().startsWith("r")) {
-            if (sourceProduct.getName().endsWith("n")) {
-                targetBandNameBuilder.append("_n");
-            }
-            if (sourceProduct.getName().endsWith("o")) {
-                targetBandNameBuilder.append("_o");
-            }
-        }
-        return targetBandNameBuilder.toString();
-    }
-
-    private void addCameraIndexBand(Product targetProduct, int cameraImageWidth) {
-        final int sceneRasterWidth = targetProduct.getSceneRasterWidth();
-        final int sceneRasterHeight = targetProduct.getSceneRasterHeight();
-        StringBuilder expression = new StringBuilder();
-        int width = 0;
-        for (int i = 0; i < 4; i++) {
-            width += cameraImageWidth;
-            expression.append("X < ").append(width).append(" ? ");
-            expression.append(i);
-            expression.append(" : ");
-            if (i == 3) {
-                expression.append(i + 1);
-            }
-        }
-        Band cameraIndexBand = new VirtualBand("Camera_Index", ProductData.TYPE_INT8,
-                                               sceneRasterWidth, sceneRasterHeight, expression.toString());
-        targetProduct.addBand(cameraIndexBand);
-        IndexCoding indexCoding = new IndexCoding("Camera_Index");
-        for (int i = 0; i < 5; i++) {
-            final String description = "Images from camera " + i;
-            indexCoding.addIndex("Camera_Index_" + (i + 1), i, description);
-        }
-
-        cameraIndexBand.setSampleCoding(indexCoding);
-        targetProduct.getIndexCodingGroup().add(indexCoding);
+        return manifest.getFileNames(excludedIDs);
     }
 
     @Override
@@ -171,8 +95,8 @@ public class SynLevel2ProductFactory extends AbstractProductFactory {
 
     private void addVariables(Product targetProduct, double[] tpLon, double[] tpLat, String fileName) throws
                                                                                                       IOException {
-        final String latBandName = "latitude";
-        final String lonBandName = "longitude";
+        final String latBandName = "lat";
+        final String lonBandName = "lon";
         final Band latBand = targetProduct.getBand(latBandName);
         final Band lonBand = targetProduct.getBand(lonBandName);
 
@@ -214,23 +138,21 @@ public class SynLevel2ProductFactory extends AbstractProductFactory {
 
     @Override
     protected void configureTargetNode(Band sourceBand, RasterDataNode targetNode) {
+        //todo read spectral band information from metadata
         if (targetNode instanceof Band) {
             final MetadataElement variableAttributes = sourceBand.getProduct().getMetadataRoot().getElement(
                     "Variable_Attributes");
             if (variableAttributes != null) {
-                final MetadataElement element = variableAttributes.getElement(
-                        sourceBand.getName().replaceAll("_CAM[1-5]", ""));
+                final MetadataElement element = variableAttributes.getElement(sourceBand.getName());
                 if (element != null) {
-                    final MetadataAttribute wavelengthAttribute = element.getAttribute("central_wavelength");
+                    final MetadataAttribute wavelengthAttribute = element.getAttribute("wavelength");
+                    final MetadataAttribute bandwidthAttribute = element.getAttribute("bandwidth");
                     final Band targetBand = (Band) targetNode;
                     if (wavelengthAttribute != null) {
                         targetBand.setSpectralWavelength(wavelengthAttribute.getData().getElemFloat());
                     }
-                    final MetadataAttribute minWavelengthAttribute = element.getAttribute("min_wavelength");
-                    final MetadataAttribute maxWavelengthAttribute = element.getAttribute("max_wavelength");
-                    if (minWavelengthAttribute != null && maxWavelengthAttribute != null) {
-                        float bandwidth = maxWavelengthAttribute.getData().getElemFloat() - minWavelengthAttribute.getData().getElemFloat();
-                        targetBand.setSpectralBandwidth(bandwidth);
+                    if (bandwidthAttribute != null) {
+                        targetBand.setSpectralBandwidth(bandwidthAttribute.getData().getElemFloat());
                     }
                 }
             }
@@ -239,8 +161,8 @@ public class SynLevel2ProductFactory extends AbstractProductFactory {
 
     @Override
     protected void setGeoCoding(Product targetProduct) throws IOException {
-        final String latBandName = "latitude";
-        final String lonBandName = "longitude";
+        final String latBandName = "lat";
+        final String lonBandName = "lon";
         final Band latBand = targetProduct.getBand(latBandName);
         final Band lonBand = targetProduct.getBand(lonBandName);
 
@@ -249,7 +171,7 @@ public class SynLevel2ProductFactory extends AbstractProductFactory {
 
     @Override
     protected void setAutoGrouping(Product[] sourceProducts, Product targetProduct) {
-        targetProduct.setAutoGrouping("SDR*er:SDR*er_n:SDR*er_o:SDR*n:SDR*o:SDR");
+        targetProduct.setAutoGrouping("SDR:SDR*err:OLC:SLN:SLO");
     }
 
 }
