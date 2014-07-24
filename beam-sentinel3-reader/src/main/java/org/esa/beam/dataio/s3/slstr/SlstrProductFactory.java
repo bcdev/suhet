@@ -47,21 +47,22 @@ public abstract class SlstrProductFactory extends AbstractProductFactory {
 
     @Override
     protected RasterDataNode addSpecialNode(Product masterProduct, Band sourceBand, Product targetProduct) {
-        final Product sourceProduct = sourceBand.getProduct();
-        final MetadataElement globalAttributes = sourceProduct.getMetadataRoot().getElement("Global_Attributes");
-        final double sourceStartOffset = getStartOffset(globalAttributes);
-        final double sourceTrackOffset = getTrackOffset(globalAttributes);
-        final short[] sourceResolutions = getResolutions(globalAttributes);
-        if (isTiePointGrid(sourceResolutions)) {
-            return copyTiePointGrid(sourceBand, targetProduct, sourceStartOffset, sourceTrackOffset, sourceResolutions);
-        } else {
-            final Band targetBand = copyBand(sourceBand, targetProduct, false);
-            final float[] offsets = getOffsets(sourceStartOffset, sourceTrackOffset, sourceResolutions);
-            final RenderedImage sourceImage = createSourceImage(masterProduct, sourceBand, offsets, targetBand,
-                                                                sourceResolutions);
-            targetBand.setSourceImage(sourceImage);
-            return targetBand;
-        }
+//        final Product sourceProduct = sourceBand.getProduct();
+//        final MetadataElement globalAttributes = sourceProduct.getMetadataRoot().getElement("Global_Attributes");
+//        final double sourceStartOffset = getStartOffset(globalAttributes);
+//        final double sourceTrackOffset = getTrackOffset(globalAttributes);
+//        final short[] sourceResolutions = getResolutions(globalAttributes);
+//        if (isTiePointGrid(sourceResolutions)) {
+//            return copyTiePointGrid(sourceBand, targetProduct, sourceStartOffset, sourceTrackOffset, sourceResolutions);
+//        } else {
+//            final Band targetBand = copyBand(sourceBand, targetProduct, false);
+//            final float[] offsets = getOffsets(sourceStartOffset, sourceTrackOffset, sourceResolutions);
+//            final RenderedImage sourceImage = createSourceImage(masterProduct, sourceBand, offsets, targetBand,
+//                                                                sourceResolutions);
+//            targetBand.setSourceImage(sourceImage);
+//            return targetBand;
+//        }
+        return sourceBand;
     }
 
     protected double getTrackOffset(MetadataElement globalAttributes) {

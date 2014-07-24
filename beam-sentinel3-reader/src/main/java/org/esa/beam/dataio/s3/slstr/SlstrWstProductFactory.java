@@ -19,6 +19,7 @@ import org.esa.beam.dataio.s3.Sentinel3ProductReader;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.PixelGeoCoding;
 import org.esa.beam.framework.datamodel.Product;
+import org.esa.beam.framework.datamodel.RasterDataNode;
 
 import java.io.IOException;
 
@@ -56,4 +57,8 @@ public class SlstrWstProductFactory extends SlstrSstProductFactory {
             targetProduct.setGeoCoding(geoCoding);
         }
     }
+
+    @Override
+    protected void configureTargetNode(Band sourceBand, RasterDataNode targetNode) {}
+
 }

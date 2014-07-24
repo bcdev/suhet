@@ -16,6 +16,7 @@ package org.esa.beam.dataio.s3;/*
 
 import org.esa.beam.framework.dataio.ProductIO;
 import org.esa.beam.framework.dataio.ProductReader;
+import org.esa.beam.framework.dataio.ProductSubsetDef;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.CrsGeoCoding;
 import org.esa.beam.framework.datamodel.Mask;
@@ -302,6 +303,7 @@ public abstract class AbstractProductFactory implements ProductFactory {
             logger.log(Level.SEVERE, msg);
             throw new IOException(msg);
         }
+
         final Product product = reader.readProductNodes(file, null);
         if (product == null) {
             final String msg = MessageFormat.format("Cannot read file ''{0}''.", fileName);

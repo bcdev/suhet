@@ -28,36 +28,10 @@ public class SlstrSstProductFactory extends SlstrProductFactory {
 
     @Override
     protected List<String> getFileNames(Manifest manifest) {
-        final List<String> fileNames = new ArrayList<String>();
-
-        fileNames.addAll(manifest.getFileNames("LSTdataSchema"));
-        if (!fileNames.isEmpty()) {
-            return fileNames;
-        }
-
-        fileNames.addAll(manifest.getFileNames("N2_SST_schema"));
-        fileNames.addAll(manifest.getFileNames("N3R_SST_schema"));
-        fileNames.addAll(manifest.getFileNames("N3_SST_schema"));
-
-        fileNames.addAll(manifest.getFileNames("geodeticTiepointCoordinatesSchema"));
-        fileNames.addAll(manifest.getFileNames("cartesianTiepointCoordinatesSchema"));
-        fileNames.addAll(manifest.getFileNames("nadirSolarViewGeometrySchema"));
-        fileNames.addAll(manifest.getFileNames("meteorologicalDataSchema"));
-
-        fileNames.addAll(manifest.getFileNames("nadirFlagsSchema"));
-        fileNames.addAll(manifest.getFileNames("nadirIndicesSchema"));
-
-        fileNames.addAll(manifest.getFileNames("D2_SST_schema"));
-        fileNames.addAll(manifest.getFileNames("D3R_SST_schema"));
-        fileNames.addAll(manifest.getFileNames("D3_SST_schema"));
-
-        fileNames.addAll(manifest.getFileNames("obliqueFlagsSchema"));
-        fileNames.addAll(manifest.getFileNames("obliqueIndicesSchema"));
-
         // TODO - not clear how to represent cartesian data
         // TODO - not clear how to represent time data
-
-        return fileNames;
+        // todo read l2p_flags as flag band (and index band)
+        return manifest.getFileNames(new String[0]);
     }
 
 }
