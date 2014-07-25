@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SlstrLstProductFactory extends SlstrProductFactory {
+public class SlstrLstProductFactory extends SlstrL2ProductFactory {
 
     public SlstrLstProductFactory(Sentinel3ProductReader productReader) {
         super(productReader);

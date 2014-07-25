@@ -110,8 +110,6 @@ public abstract class AbstractProductFactory implements ProductFactory {
         targetProduct.setFileLocation(getInputFile());
         targetProduct.setNumResolutionsMax(masterProduct.getNumResolutionsMax());
 
-        initialize(masterProduct);
-
         if (masterProduct.getGeoCoding() instanceof CrsGeoCoding) {
             ProductUtils.copyGeoCoding(masterProduct, targetProduct);
         }
@@ -231,9 +229,6 @@ public abstract class AbstractProductFactory implements ProductFactory {
             }
         }
         targetProduct.setAutoGrouping(patternBuilder.toString());
-    }
-
-    protected void initialize(Product masterProduct) {
     }
 
     protected void addDataNodes(Product masterProduct, Product targetProduct) throws IOException {

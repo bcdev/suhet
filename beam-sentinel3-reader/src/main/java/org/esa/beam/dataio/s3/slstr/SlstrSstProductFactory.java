@@ -20,7 +20,7 @@ import org.esa.beam.dataio.s3.Sentinel3ProductReader;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SlstrSstProductFactory extends SlstrProductFactory {
+public class SlstrSstProductFactory extends SlstrL2ProductFactory {
 
     public SlstrSstProductFactory(Sentinel3ProductReader productReader) {
         super(productReader);

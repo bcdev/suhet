@@ -51,7 +51,7 @@ public class Sentinel3ProductReader extends AbstractProductReader {
             factory = new OlciLevel2LProductFactory(this);
         } else if (dirName.matches("S3.?_OL_2_(W[FR]R)_.*.SEN3")) { // OLCI L2 W -
             factory = new OlciLevel2WProductFactory(this);
-        } else if (dirName.matches("S3.?_SL_1_SLT.*")) { // SLSTR L1b
+        } else if (dirName.matches("S3.?_SL_1_RBT.*")) { // SLSTR L1b
             factory = new SlstrLevel1ProductFactory(this);
         } else if (dirName.matches("S3.?_SL_2_LST_.*.SEN3")) { // SLSTR L2 LST
             factory = new SlstrLstProductFactory(this);

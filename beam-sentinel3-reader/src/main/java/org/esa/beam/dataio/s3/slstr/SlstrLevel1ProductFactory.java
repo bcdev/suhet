@@ -14,26 +14,143 @@ package org.esa.beam.dataio.s3.slstr;/*
  * with this program; if not, see http://www.gnu.org/licenses/
  */
 
+import com.bc.ceres.glevel.MultiLevelImage;
 import org.esa.beam.dataio.s3.Manifest;
 import org.esa.beam.dataio.s3.Sentinel3ProductReader;
+import org.esa.beam.dataio.s3.SourceImageScaler;
 import org.esa.beam.framework.dataio.ProductIO;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.MetadataElement;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.RasterDataNode;
+import org.esa.beam.jai.ImageManager;
 
+import javax.media.jai.BorderExtender;
+import javax.media.jai.ImageLayout;
+import javax.media.jai.Interpolation;
+import javax.media.jai.JAI;
+import java.awt.RenderingHints;
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SlstrLevel1ProductFactory extends SlstrProductFactory {
 
-    private Character penUltimateChar;
+    private final Map<String, String> gridTypeToGridIndex;
+    private final Map<String, Integer> gridIndexToTrackOffset;
+    private final Map<String, Integer> gridIndexToStartOffset;
+    private Map<String, Float> nameToWavelengthMap;
+    private Map<String, Float> nameToBandwidthMap;
+    private Map<String, Integer> nameToIndexMap;
 
     public SlstrLevel1ProductFactory(Sentinel3ProductReader productReader) {
         super(productReader);
+        gridTypeToGridIndex = new HashMap<String, String>();
+        gridTypeToGridIndex.put("1 km", "i");
+        gridTypeToGridIndex.put("0.5 km stripe A", "a");
+        gridTypeToGridIndex.put("0.5 km stripe B", "b");
+        gridTypeToGridIndex.put("0.5 km TDI", "c");
+        gridTypeToGridIndex.put("Tie Points", "t");
+        gridIndexToTrackOffset = new HashMap<String, Integer>();
+        gridIndexToStartOffset = new HashMap<String, Integer>();
+        nameToWavelengthMap = new HashMap<String, Float>();
+        nameToBandwidthMap = new HashMap<String, Float>();
+        nameToIndexMap = new HashMap<String, Integer>();
+    }
+
+    protected Integer getStartOffset(String gridIndex) {
+        return gridIndexToStartOffset.get(gridIndex);
+    }
+
+    protected Integer getTrackOffset(String gridIndex) {
+        return gridIndexToTrackOffset.get(gridIndex);
+    }
+
+    @Override
+    protected void processProductSpecificMetadata(MetadataElement metadataElement) {
+        final MetadataElement slstrInformationElement = metadataElement.getElement("slstrProductInformation");
+        final Product masterProduct = findMasterProduct();
+        final int numberOfMasterColumns = masterProduct.getSceneRasterWidth();
+        final int numberOfMasterRows = masterProduct.getSceneRasterHeight();
+        for (int i = 0; i < slstrInformationElement.getNumElements(); i++) {
+            final MetadataElement slstrElement = slstrInformationElement.getElementAt(i);
+            final String slstrElementName = slstrElement.getName();
+            if (slstrElementName.endsWith("ImageSize")) {
+                if(slstrElement.containsAttribute("grid")) {
+                    final String firstLetter =
+                            gridTypeToGridIndex.get(slstrElement.getAttribute("grid").getData().getElemString());
+                    String index;
+//                if (firstLetter.equals("t")) {
+//                    index = "tx";
+//                } else {
+                    if (slstrElementName.equals("nadirImageSize")) {
+                        index = firstLetter + "n";
+                    } else {
+                        index = firstLetter + "o";
+                    }
+//                }
+                    final int startOffset =
+                            Integer.parseInt(slstrElement.getAttribute("startOffset").getData().getElemString());
+                    final int trackOffset =
+                            Integer.parseInt(slstrElement.getAttribute("trackOffset").getData().getElemString());
+                    gridIndexToStartOffset.put(index, startOffset);
+                    gridIndexToTrackOffset.put(index, trackOffset);
+                    if (firstLetter.equals("t")) {
+                        gridIndexToStartOffset.put("tx", startOffset);
+                        gridIndexToTrackOffset.put("tx", trackOffset);
+                    }
+                    final int numberOfRows =
+                            Integer.parseInt(slstrElement.getAttribute("rows").getData().getElemString());
+                    final int numberOfColumns =
+                            Integer.parseInt(slstrElement.getAttribute("columns").getData().getElemString());
+                    if (numberOfColumns == numberOfMasterColumns && numberOfRows == numberOfMasterRows) {
+//                        referenceStartOffset = startOffset;
+                        setReferenceStartOffset(startOffset);
+//                        referenceTrackOffset = trackOffset;
+                        setReferenceTrackOffset(trackOffset);
+//                        referenceResolutions = getResolutions(index);
+                        setReferenceResolutions(getResolutions(index));
+                    }
+                }
+            }
+            if (slstrElementName.equals("bandDescriptions")) {
+                for (int j = 0; j < slstrElement.getNumElements(); j++) {
+                    final MetadataElement bandElement = slstrElement.getElementAt(j);
+                    final String bandName = bandElement.getAttribute("name").getData().getElemString();
+                    final float wavelength =
+                            Float.parseFloat(bandElement.getAttribute("centralWavelength").getData().getElemString());
+                    final float bandWidth =
+                            Float.parseFloat(bandElement.getAttribute("bandWidth").getData().getElemString());
+                    nameToWavelengthMap.put(bandName, wavelength);
+                    nameToBandwidthMap.put(bandName, bandWidth);
+                    nameToIndexMap.put(bandName, j);
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void configureTargetNode(Band sourceBand, RasterDataNode targetNode) {
+        super.configureTargetNode(sourceBand, targetNode);
+//        final String sourceBandName = sourceBand.getName();
+//        final String sourceProductName = sourceBand.getProduct().getName();
+//        if (sourceProductName.contains(sourceBandName)) {
+//            targetNode.setName(sourceProductName);
+//        } else {
+//            targetNode.setName(sourceProductName + "_" + sourceBandName);
+//        }
+        final String sourceBandName = sourceBand.getName();
+        final String sourceBandNameStart = sourceBandName.substring(0, 2);
+        if (nameToWavelengthMap.containsKey(sourceBandNameStart)) {
+            ((Band) targetNode).setSpectralWavelength(nameToWavelengthMap.get(sourceBandNameStart));
+            ((Band) targetNode).setSpectralBandIndex(nameToIndexMap.get(sourceBandNameStart));
+            ((Band) targetNode).setSpectralBandwidth(nameToBandwidthMap.get(sourceBandNameStart));
+        }
     }
 
     @Override
@@ -52,107 +169,6 @@ public class SlstrLevel1ProductFactory extends SlstrProductFactory {
 
 
         return Arrays.asList(fileNames);
-    }
-
-    @Override
-    protected double getStartOffset(MetadataElement globalAttributes) {
-        final String sourceProductName = globalAttributes.getProduct().getName();
-        final double startOffset = globalAttributes.getAttributeDouble("start_offset");
-        if (startOffset != 0.0) {
-            return startOffset;
-        }
-        if (sourceProductName.contains("flags") && sourceProductName.endsWith("o")) {
-            return 0.0;
-        } else if (sourceProductName.endsWith("_in")) {
-            return 0.5;
-        } else if (sourceProductName.endsWith("_io")) {
-            return 389.5;
-        } else if (sourceProductName.endsWith("_an") ||
-                sourceProductName.endsWith("_bn") ||
-                sourceProductName.endsWith("_cn")) {
-            return 1.0;
-        } else if (sourceProductName.endsWith("_ao") || sourceProductName.endsWith("_bo") ||
-                sourceProductName.endsWith("_co")) {
-            return 779.0;
-        } else if (sourceProductName.endsWith("_to")) {
-            return 20.;
-        }
-        return startOffset;
-    }
-
-    @Override
-    protected double getTrackOffset(MetadataElement globalAttributes) {
-        final String sourceProductName = globalAttributes.getProduct().getName();
-        final double trackOffset = globalAttributes.getAttributeDouble("track_offset");
-        if (trackOffset != 0) {
-            return trackOffset;
-        } else if (sourceProductName.contains("flags") && sourceProductName.endsWith("o")) {
-            return 50.0;
-        } else if (sourceProductName.endsWith("_in")) {
-            return -471.5;
-        } else if (sourceProductName.endsWith("_io")) {
-            return 207.0;
-        } else if (sourceProductName.endsWith("_an") || sourceProductName.endsWith("_cn") ||
-                sourceProductName.endsWith("_bn")) {
-            return -943.0;
-        } else if (sourceProductName.endsWith("_ao") || sourceProductName.endsWith("_bo") ||
-                sourceProductName.endsWith("_co")) {
-            return 412.0;
-        } else if (sourceProductName.endsWith("_tx") || sourceProductName.endsWith("_tn")) {
-            return -30.0;
-        } else if (sourceProductName.endsWith("_to")) {
-            return -70.;
-        }
-        return trackOffset;
-    }
-
-    @Override
-    protected void configureTargetNode(Band sourceBand, RasterDataNode targetNode) {
-        super.configureTargetNode(sourceBand, targetNode);
-        final String productName = sourceBand.getProduct().getName();
-        final String targetNodeName = targetNode.getName();
-        if (targetNodeName.contains("BT") || targetNodeName.contains("radiance") & !(targetNodeName.contains("exception"))) {
-            final String path = sourceBand.getProduct().getFileLocation().getAbsolutePath();
-            String qualityProductName = productName.replace("BT", "quality").replace("radiance", "quality");
-            final String qualityProductPath = path.replace(productName, qualityProductName);
-            try {
-                final Product product = ProductIO.readProduct(qualityProductPath);
-                if (product != null) {
-                    final float wavelength = product.getMetadataRoot().getElement("Variable_Attributes").getElement(
-                            "band_centre").
-                            getElement("values").getAttribute("data").getData().getElemFloat() * 1000;
-                    ((Band) targetNode).setSpectralWavelength(wavelength);
-                    final float bandwidth = product.getMetadataRoot().getElement("Variable_Attributes").getElement(
-                            "bandwidth").
-                            getElement("values").getAttribute("data").getData().getElemFloat() * 1000;
-                    ((Band) targetNode).setSpectralBandwidth(bandwidth);
-                }
-            } catch (IOException e) {
-                //no spectral properties can be assigned
-            }
-        }
-    }
-
-    @Override
-    protected boolean isTiePointGrid(short[] sourceResolutions) {
-        return penUltimateChar.compareTo('t') == 0;
-    }
-
-    @Override
-    protected short[] getResolutions(MetadataElement globalAttributes) {
-        short[] resolutions = super.getResolutions(globalAttributes);
-        final String productName = globalAttributes.getProduct().getName();
-        penUltimateChar = productName.charAt(productName.length() - 2);
-        if (resolutions[0] == 0 && resolutions[1] == 0) {
-            if (penUltimateChar.compareTo('i') == 0) {
-                resolutions = new short[]{1000, 1000};
-            } else if (penUltimateChar.compareTo('t') == 0) {
-                resolutions = new short[]{16000, 16000};
-            } else {
-                resolutions = new short[]{500, 500};
-            }
-        }
-        return resolutions;
     }
 
     @Override

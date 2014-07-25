@@ -19,7 +19,6 @@ import org.esa.beam.dataio.s3.AbstractProductFactory;
 import org.esa.beam.dataio.s3.Sentinel3ProductReader;
 import org.esa.beam.dataio.s3.SourceImageScaler;
 import org.esa.beam.framework.datamodel.Band;
-import org.esa.beam.framework.datamodel.MetadataAttribute;
 import org.esa.beam.framework.datamodel.MetadataElement;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.RasterDataNode;
@@ -47,47 +46,56 @@ public abstract class SlstrProductFactory extends AbstractProductFactory {
 
     @Override
     protected RasterDataNode addSpecialNode(Product masterProduct, Band sourceBand, Product targetProduct) {
-//        final Product sourceProduct = sourceBand.getProduct();
-//        final MetadataElement globalAttributes = sourceProduct.getMetadataRoot().getElement("Global_Attributes");
-//        final double sourceStartOffset = getStartOffset(globalAttributes);
-//        final double sourceTrackOffset = getTrackOffset(globalAttributes);
-//        final short[] sourceResolutions = getResolutions(globalAttributes);
-//        if (isTiePointGrid(sourceResolutions)) {
-//            return copyTiePointGrid(sourceBand, targetProduct, sourceStartOffset, sourceTrackOffset, sourceResolutions);
-//        } else {
-//            final Band targetBand = copyBand(sourceBand, targetProduct, false);
-//            final float[] offsets = getOffsets(sourceStartOffset, sourceTrackOffset, sourceResolutions);
-//            final RenderedImage sourceImage = createSourceImage(masterProduct, sourceBand, offsets, targetBand,
-//                                                                sourceResolutions);
-//            targetBand.setSourceImage(sourceImage);
-//            return targetBand;
-//        }
+        final String sourceBandName = sourceBand.getName();
+        final int sourceBandNameLength = sourceBandName.length();
+        String gridIndex = sourceBandName;
+        if(sourceBandNameLength > 1) {
+            gridIndex = sourceBandName.substring(sourceBandNameLength - 2);
+        }
+        final Integer sourceStartOffset = getStartOffset(gridIndex);
+        final Integer sourceTrackOffset = getTrackOffset(gridIndex);
+        if (sourceStartOffset != null && sourceTrackOffset != null) {
+            final short[] sourceResolutions = getResolutions(gridIndex);
+            if (gridIndex.startsWith("t")) {
+                return copyTiePointGrid(sourceBand, targetProduct, sourceStartOffset, sourceTrackOffset, sourceResolutions);
+            } else {
+                final Band targetBand = copyBand(sourceBand, targetProduct, false);
+                final float[] offsets = getOffsets(sourceStartOffset, sourceTrackOffset, sourceResolutions);
+                final RenderedImage sourceImage = createSourceImage(masterProduct, sourceBand, offsets, targetBand,
+                                                                    sourceResolutions);
+                targetBand.setSourceImage(sourceImage);
+                return targetBand;
+            }
+        }
         return sourceBand;
     }
 
-    protected double getTrackOffset(MetadataElement globalAttributes) {
-        return globalAttributes.getAttributeDouble("track_offset", 0.0);
-    }
+    protected abstract Integer getStartOffset(String gridIndex);
 
-    protected double getStartOffset(MetadataElement globalAttributes) {
-        return globalAttributes.getAttributeDouble("start_offset", 0.0);
-    }
+    protected abstract Integer getTrackOffset(String gridIndex);
 
-    @Deprecated // simply ask if reference (i.e target) resolution is different from source resolution
-    protected boolean isTiePointGrid(short[] sourceResolutions) {
-        return sourceResolutions[0] != referenceResolutions[0];
-    }
-
-    protected short[] getResolutions(MetadataElement globalAttributes) {
-        final MetadataAttribute attribute = globalAttributes.getAttribute("resolution");
-        if (attribute == null) {
-            return null;
-        }
-        final short[] resolutions = (short[]) attribute.getDataElems();
-        if (resolutions.length == 1) {
-            return new short[]{resolutions[0], resolutions[0]};
+    protected short[] getResolutions(String gridIndex) {
+        short[] resolutions;
+        if (gridIndex.startsWith("i")) {
+            resolutions = new short[]{1000, 1000};
+        } else if (gridIndex.startsWith("t")) {
+            resolutions = new short[]{16000, 16000};
+        } else {
+            resolutions = new short[]{500, 500};
         }
         return resolutions;
+    }
+
+    protected void setReferenceStartOffset(int startOffset) {
+        referenceStartOffset = startOffset;
+    }
+
+    protected void setReferenceTrackOffset(int trackOffset) {
+        referenceTrackOffset = trackOffset;
+    }
+
+    protected void setReferenceResolutions(short[] resolutions) {
+        referenceResolutions = resolutions;
     }
 
     private RenderedImage createSourceImage(Product masterProduct, Band sourceBand, float[] offsets,
@@ -96,7 +104,8 @@ public abstract class SlstrProductFactory extends AbstractProductFactory {
         final RenderingHints renderingHints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, imageLayout);
         renderingHints.add(new RenderingHints(JAI.KEY_BORDER_EXTENDER,
                                               BorderExtender.createInstance(
-                                                      BorderExtender.BORDER_COPY)));
+                                                      BorderExtender.BORDER_COPY)
+        ));
         final MultiLevelImage sourceImage = sourceBand.getSourceImage();
         final float[] scalings = new float[]{
                 ((float) sourceResolutions[0]) / referenceResolutions[0],
@@ -109,7 +118,7 @@ public abstract class SlstrProductFactory extends AbstractProductFactory {
     }
 
     protected float[] getOffsets(double sourceStartOffset, double sourceTrackOffset, short[] sourceResolutions) {
-        float offsetX = (float) (sourceTrackOffset * (sourceResolutions[0] / referenceResolutions[0]) - referenceTrackOffset);
+        float offsetX = (float) (referenceTrackOffset - sourceTrackOffset * (sourceResolutions[0] / referenceResolutions[0]));
         float offsetY = (float) (sourceStartOffset * (sourceResolutions[1] / referenceResolutions[1]) - referenceStartOffset);
         return new float[]{offsetX, offsetY};
     }
@@ -142,14 +151,13 @@ public abstract class SlstrProductFactory extends AbstractProductFactory {
         } else {
             targetNode.setName(sourceProductName + "_" + sourceBandName);
         }
-    }
-
-    @Override
-    protected void initialize(Product masterProduct) {
-        final MetadataElement globalAttributes = masterProduct.getMetadataRoot().getElement("Global_Attributes");
-        referenceStartOffset = getStartOffset(globalAttributes);
-        referenceTrackOffset = getTrackOffset(globalAttributes);
-        referenceResolutions = getResolutions(globalAttributes);
+//        final String targetNodeName = targetNode.getName();
+//        final String targetNodeNameStart = targetNodeName.substring(0, 2);
+//        if (nameToWavelengthMap.containsKey(targetNodeNameStart)) {
+//            ((Band) targetNode).setSpectralWavelength(nameToWavelengthMap.get(targetNodeNameStart));
+//            ((Band) targetNode).setSpectralBandIndex(nameToIndexMap.get(targetNodeNameStart));
+//            ((Band) targetNode).setSpectralBandwidth(nameToBandwidthMap.get(targetNodeNameStart));
+//        }
     }
 
     @Override
